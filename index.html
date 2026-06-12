@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Alife Virtual — Dating Board</title>
+<!-- BUILD: v3-supabase-connected -->
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:#f5f3ff; --surface:#ffffff; --card:#ffffff; --border:#e0d9f7;
+  --accent:#7c3aed; --accent2:#db2777; --accentlt:#ede9fe;
+  --teal:#0d9488; --tealt:#ccfbf1; --gold:#b45309; --goldt:#fef3c7;
+  --text:#1e1b4b; --muted:#6b7280; --danger:#dc2626; --dangert:#fee2e2;
+  --success:#059669; --successl:#d1fae5; --r:10px;
+  --display:'Playfair Display',serif; --body:'Inter',sans-serif;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(124,58,237,.07);
+  --shadow2:0 4px 24px rgba(124,58,237,.14);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14px;min-height:100vh}
+
+/* ── TOPBAR ── */
+#topbar{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:54px;background:#fff;border-bottom:2px solid var(--border);box-shadow:0 2px 8px rgba(124,58,237,.08)}
+.logo{font-family:var(--display);font-size:1.25rem;font-weight:700;font-style:italic;color:var(--accent)}
+.logo span{color:var(--accent2)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.topbar-user{font-size:.75rem;font-weight:500;color:var(--muted);padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.topbar-user.linked{border-color:var(--teal);color:var(--teal);background:var(--tealt)}
+.admin-topbtn{padding:5px 12px;border-radius:20px;border:1.5px solid var(--accent);background:var(--accentlt);color:var(--accent);font-size:.72rem;font-weight:600;cursor:pointer;display:none}
+.admin-topbtn:hover{background:#ddd6fe}
+
+/* ── NAV ── */
+#nav{position:fixed;top:54px;left:0;right:0;z-index:99;display:flex;gap:0;padding:0 16px;background:#fff;border-bottom:2px solid var(--border);overflow-x:auto}
+.navbtn{padding:12px 18px;border:none;background:none;font-family:var(--body);font-size:.8rem;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .15s,border-color .15s;letter-spacing:.02em}
+.navbtn:hover{color:var(--accent)}
+.navbtn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* ── MAIN ── */
+main{max-width:1040px;margin:0 auto;padding:116px 20px 80px}
+.panel{display:none}
+.panel.active{display:block}
+.ph{font-family:var(--display);font-size:1.75rem;font-weight:700;font-style:italic;color:var(--text);margin-bottom:4px}
+.psub{color:var(--muted);font-size:.8rem;margin-bottom:22px}
+
+/* ── SETUP BANNER ── */
+.setup-banner{background:#fff3cd;border:1.5px solid #ffc107;border-radius:10px;padding:16px 20px;margin-bottom:22px;font-size:.82rem;color:#856404;line-height:1.7;display:none}
+.setup-banner.show{display:block}
+.setup-banner strong{color:#5a3e00}
+.setup-banner code{background:#ffeaa7;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:.78rem}
+
+/* ── FILTER BAR ── */
+.filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.fi{padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:#fff;color:var(--text);font-family:var(--body);font-size:.8rem;font-weight:500;outline:none;transition:border-color .15s;cursor:pointer}
+.fi:focus{border-color:var(--accent)}
+.fi::placeholder{color:#9ca3af}
+.fi.grow{flex:1;min-width:160px}
+
+/* ── GRID ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+
+/* ── PROFILE CARD ── */
+.pcard{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden;cursor:pointer;box-shadow:var(--shadow);transition:transform .18s,box-shadow .18s,border-color .18s;position:relative}
+.pcard:hover{transform:translateY(-3px);box-shadow:var(--shadow2);border-color:var(--accent)}
+.pcard-banner{height:68px;background:linear-gradient(130deg,#7c3aed,#db2777);position:relative}
+.pcard-banner.g2{background:linear-gradient(130deg,#4f46e5,#7c3aed)}
+.pcard-banner.g3{background:linear-gradient(130deg,#db2777,#f59e0b)}
+.pcard-banner.g4{background:linear-gradient(130deg,#0d9488,#4f46e5)}
+.pcard-banner.g5{background:linear-gradient(130deg,#f59e0b,#db2777)}
+.pcard-avi{width:50px;height:50px;border-radius:50%;border:3px solid #fff;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:1.35rem;position:absolute;bottom:-25px;left:14px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.pcard-body{padding:32px 14px 14px}
+.pcard-name{font-family:var(--display);font-size:.98rem;font-weight:700;color:var(--text);margin-bottom:2px}
+.pcard-user{color:var(--muted);font-size:.7rem;margin-bottom:8px}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.tag{padding:2px 8px;border-radius:20px;font-size:.65rem;font-weight:600;background:var(--accentlt);color:var(--accent);border:1px solid #ddd6fe}
+.tag.r{background:#fce7f3;color:var(--accent2);border-color:#fbcfe8}
+.tag.g{background:var(--goldt);color:var(--gold);border-color:#fde68a}
+.tag.t{background:var(--tealt);color:var(--teal);border-color:#99f6e4}
+.pcard-bio{font-size:.75rem;color:var(--muted);line-height:1.55;margin-bottom:12px}
+.row2{display:flex;gap:6px}
+
+/* ── BUTTONS ── */
+.btn{flex:1;padding:7px 6px;border-radius:7px;border:none;font-family:var(--body);font-size:.72rem;font-weight:600;cursor:pointer;transition:all .15s;text-align:center}
+.btn.pri{background:var(--accent);color:#fff}
+.btn.pri:hover{background:#6d28d9}
+.btn.sec{background:#f3f4f6;color:var(--text);border:1.5px solid var(--border)}
+.btn.sec:hover{border-color:var(--accent);color:var(--accent)}
+.btn.danger{background:var(--dangert);color:var(--danger);border:1.5px solid #fca5a5}
+.btn.danger:hover{background:#fecaca}
+.btn.warn{background:#fff7ed;color:#c2410c;border:1.5px solid #fed7aa}
+.btn.warn:hover{background:#ffedd5}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:56px 20px;color:var(--muted);font-size:.85rem;grid-column:1/-1}
+.empty .eico{font-size:2.6rem;opacity:.3;margin-bottom:10px}
+
+/* ── WINK NOTICE ── */
+.wink-notice{background:var(--tealt);border:1.5px solid #5eead4;border-radius:9px;padding:12px 16px;font-size:.8rem;color:var(--teal);font-weight:500;margin-bottom:18px;display:none}
+.wink-notice.show{display:block}
+
+/* ── FORM CARD ── */
+.fcard{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:26px;max-width:580px;box-shadow:var(--shadow)}
+
+/* consent */
+.consent{background:var(--accentlt);border:1.5px solid #c4b5fd;border-radius:9px;padding:18px 20px;margin-bottom:22px}
+.consent h3{font-family:var(--display);font-size:.95rem;font-style:italic;color:var(--accent);margin-bottom:8px}
+.consent p,.consent li{color:#4b5563;font-size:.78rem;line-height:1.75}
+.consent ul{padding-left:16px;margin:8px 0 12px}
+.ckrow{display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;border-radius:8px;border:1.5px solid #c4b5fd;background:#fff;margin-top:10px;transition:border-color .15s}
+.ckrow:hover{border-color:var(--accent)}
+.ckrow.checked{border-color:var(--teal);background:var(--tealt)}
+.ckrow input[type=checkbox]{width:15px;height:15px;margin-top:2px;flex-shrink:0;accent-color:var(--accent);cursor:pointer}
+.ckrow label{font-size:.78rem;color:var(--text);line-height:1.5;cursor:pointer}
+
+/* verify */
+.vrow{display:flex;gap:8px;align-items:flex-end}
+.vrow .fi{flex:1}
+.vstatus{font-size:.73rem;margin-top:5px;min-height:16px}
+.vstatus.ok{color:var(--success)}
+.vstatus.err{color:var(--danger)}
+.vstatus.chk{color:var(--muted)}
+
+/* form groups */
+.fg{margin-bottom:15px}
+.fg label{display:block;font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.req{color:var(--accent2)}
+.fc{width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid var(--border);background:#fff;color:var(--text);font-family:var(--body);font-size:.83rem;outline:none;transition:border-color .15s}
+.fc:focus{border-color:var(--accent)}
+.fc::placeholder{color:#9ca3af}
+textarea.fc{resize:vertical;min-height:80px}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* interest tags */
+.ipicker{display:flex;flex-wrap:wrap;gap:6px;padding-top:4px}
+.itag{padding:5px 11px;border-radius:20px;border:1.5px solid var(--border);background:#fff;color:var(--muted);font-size:.73rem;font-weight:500;cursor:pointer;transition:all .14s}
+.itag.on{background:var(--accentlt);border-color:#a78bfa;color:var(--accent)}
+
+/* avatar picker */
+.avipicker{display:flex;gap:7px;flex-wrap:wrap;padding-top:4px}
+.avibtn{width:38px;height:38px;border-radius:50%;border:2px solid var(--border);background:#f9fafb;font-size:1.15rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .14s}
+.avibtn.on{border-color:var(--accent);background:var(--accentlt);box-shadow:0 0 0 3px #ddd6fe}
+
+/* submit */
+.subBtn{width:100%;padding:13px;border-radius:9px;border:none;background:var(--accent);color:#fff;font-family:var(--display);font-size:1.05rem;font-weight:700;font-style:italic;cursor:pointer;transition:background .18s;letter-spacing:.03em;margin-top:8px}
+.subBtn:hover{background:#6d28d9}
+.subBtn:disabled{background:#c4b5fd;cursor:not-allowed}
+.vbtn{padding:9px 14px;border-radius:8px;border:1.5px solid var(--accent);background:var(--accentlt);color:var(--accent);font-family:var(--body);font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.vbtn:hover{background:#ddd6fe}
+
+/* ── MESSAGES ── */
+.msglayout{display:grid;grid-template-columns:240px 1fr;gap:14px;height:500px}
+.clist{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);overflow-y:auto;box-shadow:var(--shadow)}
+.ci{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s}
+.ci:hover,.ci.active{background:var(--bg)}
+.ciavi{width:36px;height:36px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:.95rem}
+.ciname{font-size:.8rem;font-weight:600;color:var(--text)}
+.ciprev{font-size:.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.chatarea{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.chatheader{padding:13px 16px;border-bottom:1.5px solid var(--border);font-weight:600;font-size:.85rem;color:var(--text);display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-radius:var(--r) var(--r) 0 0}
+.chatmsgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px;background:#fafafa}
+.bubble{max-width:70%;padding:9px 12px;border-radius:11px;font-size:.8rem;line-height:1.55;word-break:break-word}
+.bubble.them{background:#fff;border:1.5px solid var(--border);color:var(--text);align-self:flex-start;border-bottom-left-radius:3px}
+.bubble.me{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:3px}
+.bubble .btime{font-size:.62rem;opacity:.65;margin-top:3px}
+.chatinputrow{display:flex;gap:7px;padding:11px 13px;border-top:1.5px solid var(--border);background:var(--bg);border-radius:0 0 var(--r) var(--r)}
+.chatinput{flex:1;padding:8px 11px;border-radius:8px;border:1.5px solid var(--border);background:#fff;color:var(--text);font-family:var(--body);font-size:.8rem;outline:none;transition:border-color .15s}
+.chatinput:focus{border-color:var(--accent)}
+.sendbtn{padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:.8rem;font-weight:600;cursor:pointer}
+.sendbtn:hover{background:#6d28d9}
+
+/* ── MY PROFILE ── */
+.mypcard{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:24px;max-width:560px;box-shadow:var(--shadow)}
+.mphead{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px}
+.mpavi{width:68px;height:68px;border-radius:50%;border:3px solid var(--accent);flex-shrink:0;background:var(--accentlt);display:flex;align-items:center;justify-content:center;font-size:1.9rem}
+.mpname{font-family:var(--display);font-size:1.25rem;font-weight:700;font-style:italic;color:var(--text);margin-bottom:3px}
+.mpuser{color:var(--muted);font-size:.75rem;margin-bottom:6px}
+.statsrow{display:flex;gap:24px;margin:14px 0}
+.stat .val{font-family:var(--display);font-size:1.4rem;font-weight:700;color:var(--accent)}
+.stat .lbl{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.mpbio{font-size:.8rem;color:var(--muted);line-height:1.6;margin:10px 0 16px}
+.mpactions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ── ADMIN PANEL ── */
+.admin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:28px}
+.admin-card{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:20px;box-shadow:var(--shadow)}
+.admin-card h3{font-family:var(--display);font-size:1rem;font-style:italic;color:var(--text);margin-bottom:4px}
+.admin-card p{font-size:.75rem;color:var(--muted);margin-bottom:14px;line-height:1.5}
+.admin-stat{font-family:var(--display);font-size:2rem;font-weight:700;color:var(--accent);margin-bottom:4px}
+
+.admin-table-wrap{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);margin-bottom:20px}
+.admin-table-title{padding:14px 18px;border-bottom:1.5px solid var(--border);font-weight:600;font-size:.85rem;color:var(--text);background:var(--bg);display:flex;align-items:center;justify-content:space-between}
+table{width:100%;border-collapse:collapse}
+th{padding:10px 14px;font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:left;background:var(--bg);border-bottom:1.5px solid var(--border)}
+td{padding:11px 14px;font-size:.8rem;color:var(--text);border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.td-actions{display:flex;gap:6px}
+.tdbtn{padding:5px 10px;border-radius:6px;border:none;font-size:.7rem;font-weight:600;cursor:pointer;transition:all .15s}
+.tdbtn.del{background:var(--dangert);color:var(--danger)}
+.tdbtn.del:hover{background:#fecaca}
+.tdbtn.approve{background:var(--successl);color:var(--success)}
+.tdbtn.approve:hover{background:#a7f3d0}
+.tdbtn.ban{background:#fff7ed;color:#c2410c}
+.tdbtn.ban:hover{background:#ffedd5}
+
+.admin-login-form{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:26px;max-width:360px;box-shadow:var(--shadow)}
+.admin-login-form h2{font-family:var(--display);font-size:1.2rem;font-style:italic;color:var(--text);margin-bottom:6px}
+.admin-login-form p{font-size:.78rem;color:var(--muted);margin-bottom:18px}
+.pin-input{letter-spacing:.3em;font-size:1.1rem;text-align:center;font-weight:600}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;z-index:200;background:rgba(30,27,75,.4);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.show{opacity:1;pointer-events:all}
+.modal{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:26px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(124,58,237,.2);transform:scale(.93);transition:transform .22s cubic-bezier(.34,1.56,.64,1);max-height:90vh;overflow-y:auto}
+.overlay.show .modal{transform:scale(1)}
+.mh{font-family:var(--display);font-size:1.2rem;font-weight:700;font-style:italic;color:var(--text);margin-bottom:10px}
+.mactions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+.mbtn{padding:8px 18px;border-radius:8px;border:none;font-family:var(--body);font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s}
+.mbtn.cancel{background:#f3f4f6;color:var(--muted);border:1.5px solid var(--border)}
+.mbtn.cancel:hover{color:var(--text)}
+.mbtn.ok{background:var(--accent);color:#fff}
+.mbtn.ok:hover{background:#6d28d9}
+.mbtn.del{background:var(--danger);color:#fff}
+.mbtn.del:hover{background:#b91c1c}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:20px;z-index:999;padding:11px 18px;border-radius:9px;font-size:.8rem;font-weight:500;background:#fff;border:1.5px solid var(--border);box-shadow:0 8px 30px rgba(0,0,0,.15);max-width:300px;transform:translateY(60px) scale(.95);opacity:0;transition:all .28s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
+.toast.show{transform:translateY(0) scale(1);opacity:1}
+.toast.ok{border-color:#6ee7b7;color:var(--success);background:var(--successl)}
+.toast.bad{border-color:#fca5a5;color:var(--danger);background:var(--dangert)}
+
+/* spinner */
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:640px){
+  .frow2{grid-template-columns:1fr}
+  .msglayout{grid-template-columns:1fr;height:auto}
+  .clist{height:160px}
+  .chatarea{height:360px}
+}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="logo">Alife <span>Dating Board</span></div>
+  <div class="topbar-right">
+    <button class="admin-topbtn" id="admin-topbtn" onclick="switchTab('admin')">⚙ Admin</button>
+    <div class="topbar-user" id="tb-user">Not signed in</div>
+  </div>
+</div>
+
+<nav id="nav">
+  <button class="navbtn active" data-tab="browse">✦ Browse</button>
+  <button class="navbtn" data-tab="signup">＋ Join Board</button>
+  <button class="navbtn" data-tab="messages">✉ Messages <span id="msg-badge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:.65rem;margin-left:3px"></span></button>
+  <button class="navbtn" data-tab="myprofile">◈ My Profile</button>
+  <button class="navbtn" data-tab="admin" id="admin-navbtn" style="display:none">⚙ Admin</button>
+</nav>
+
+<main>
+
+  <!-- ══ SETUP BANNER ══ -->
+  <div class="setup-banner" id="setup-banner">
+    <strong>⚙ Setup Required — Connect your Supabase database</strong><br/>
+    Profiles will not persist until you add your Supabase credentials. Open this file and replace the two placeholders at the top of the &lt;script&gt; section:<br/><br/>
+    <code>SUPABASE_URL</code> → your project URL (e.g. <code>https://xyzxyz.supabase.co</code>)<br/>
+    <code>SUPABASE_ANON_KEY</code> → your anon/public API key<br/><br/>
+    See the <strong>Setup Guide</strong> below for step-by-step instructions.
+  </div>
+
+  <!-- ══ BROWSE ══ -->
+  <div id="panel-browse" class="panel active">
+    <h1 class="ph">Find a Connection</h1>
+    <p class="psub">All residents currently listed on the board — click any card to view their full profile</p>
+    <div class="wink-notice" id="wink-inbox"></div>
+    <div class="filterbar">
+      <input class="fi grow" id="fsearch" type="text" placeholder="Search name or username…" oninput="renderBrowse()"/>
+      <select class="fi" id="fgender" onchange="renderBrowse()">
+        <option value="">Any gender</option>
+        <option>Female</option><option>Male</option><option>Non-binary</option><option>Other</option>
+      </select>
+      <select class="fi" id="finterest" onchange="renderBrowse()">
+        <option value="">Any interest</option>
+        <option>Roleplay</option><option>Romance</option><option>Friendship</option><option>Events</option>
+        <option>Building</option><option>Music</option><option>Dancing</option><option>Art</option>
+        <option>Photography</option><option>Fashion</option><option>Gaming</option><option>Exploring</option>
+      </select>
+      <select class="fi" id="fsort" onchange="renderBrowse()">
+        <option value="new">Newest first</option>
+        <option value="alpha">A – Z</option>
+        <option value="winks">Most winks</option>
+      </select>
+    </div>
+    <div id="browse-loading" style="text-align:center;padding:40px;color:var(--muted);display:none"><span class="spinner"></span>Loading profiles…</div>
+    <div class="grid" id="browse-grid"></div>
+  </div>
+
+  <!-- ══ SIGN UP ══ -->
+  <div id="panel-signup" class="panel">
+    <h1 class="ph">Join the Board</h1>
+    <p class="psub">Link your Alife Virtual account and create your listing</p>
+    <div class="fcard" id="signup-form-wrap">
+      <div class="consent">
+        <h3>📋 Consent & Privacy Notice</h3>
+        <p>Before joining, please read and agree to the following:</p>
+        <ul>
+          <li>Your display name, avatar emoji, bio, and interests will be publicly visible to all board visitors.</li>
+          <li>Other residents may send you Winks and in-board messages.</li>
+          <li>You may remove your listing at any time from My Profile.</li>
+          <li>Alife Virtual's community standards and Terms of Service apply at all times.</li>
+          <li>You must be 18 years or older to be listed.</li>
+          <li>Your profile data is stored in a secure database and persists across sessions.</li>
+        </ul>
+        <div class="ckrow" id="consent-row" onclick="toggleConsent()">
+          <input type="checkbox" id="consent-ck" onclick="event.stopPropagation()"/>
+          <label for="consent-ck">I have read and agree to all of the above. I confirm I am 18 or older and consent to my profile being publicly listed on the Alife Virtual Dating Board.</label>
+        </div>
+      </div>
+      <div class="fg">
+        <label>Alife Virtual Username <span class="req">*</span></label>
+        <div class="vrow">
+          <input class="fi fc" id="alife-user" type="text" placeholder="e.g. StarrLight Resident"/>
+          <button class="vbtn" onclick="verifyAccount()">Verify Account</button>
+        </div>
+        <div class="vstatus" id="vstatus"></div>
+      </div>
+      <div class="frow2">
+        <div class="fg"><label>Display Name <span class="req">*</span></label><input class="fc" id="dname" type="text" placeholder="Name on your card" oninput="checkForm()"/></div>
+        <div class="fg"><label>Age <span class="req">*</span> (18+)</label><input class="fc" id="age" type="number" min="18" max="99" placeholder="18" oninput="checkForm()"/></div>
+      </div>
+      <div class="frow2">
+        <div class="fg"><label>Gender Identity</label>
+          <select class="fc" id="gender"><option value="">Prefer not to say</option><option>Female</option><option>Male</option><option>Non-binary</option><option>Other</option></select>
+        </div>
+        <div class="fg"><label>Looking for</label>
+          <select class="fc" id="looking"><option>Romance</option><option>Friendship</option><option>Roleplay partner</option><option>Events buddy</option><option>Building partner</option><option>Open to anything</option></select>
+        </div>
+      </div>
+      <div class="fg"><label>Avatar Icon</label><div class="avipicker" id="avipicker"></div></div>
+      <div class="fg"><label>Bio <span class="req">*</span></label><textarea class="fc" id="bio" placeholder="Tell others about yourself — your personality, what you love in Alife Virtual, and what you're looking for…" oninput="checkForm()"></textarea></div>
+      <div class="fg"><label>Interests (pick up to 5)</label>
+        <div class="ipicker" id="ipicker">
+          <button class="itag" onclick="toggleItag(this)">Roleplay</button><button class="itag" onclick="toggleItag(this)">Romance</button>
+          <button class="itag" onclick="toggleItag(this)">Events</button><button class="itag" onclick="toggleItag(this)">Music</button>
+          <button class="itag" onclick="toggleItag(this)">Dancing</button><button class="itag" onclick="toggleItag(this)">Building</button>
+          <button class="itag" onclick="toggleItag(this)">Exploring</button><button class="itag" onclick="toggleItag(this)">Photography</button>
+          <button class="itag" onclick="toggleItag(this)">Fashion</button><button class="itag" onclick="toggleItag(this)">Gaming</button>
+          <button class="itag" onclick="toggleItag(this)">Art</button><button class="itag" onclick="toggleItag(this)">Friendship</button>
+        </div>
+      </div>
+      <div class="fg"><label>Preferred Contact Method</label>
+        <select class="fc" id="contactpref"><option>In-world IM only</option><option>Winks only</option><option>IM or Winks</option><option>Group events preferred</option></select>
+      </div>
+      <button class="subBtn" id="subBtn" onclick="submitProfile()" disabled>Post My Profile to the Board</button>
+    </div>
+    <div class="fcard" id="already-listed" style="display:none">
+      <p style="color:var(--success);margin-bottom:10px;font-size:.9rem">✓ You are already listed on the board.</p>
+      <p style="color:var(--muted);font-size:.8rem;margin-bottom:16px">Head to <strong>My Profile</strong> to edit or remove your listing.</p>
+      <button class="btn pri" style="flex:none;padding:9px 22px;width:auto" onclick="switchTab('myprofile')">Go to My Profile</button>
+    </div>
+  </div>
+
+  <!-- ══ MESSAGES ══ -->
+  <div id="panel-messages" class="panel">
+    <h1 class="ph">Messages</h1>
+    <p class="psub">Your in-board conversations with other residents</p>
+    <div class="msglayout">
+      <div class="clist" id="clist"></div>
+      <div class="chatarea">
+        <div class="chatheader"><span id="chat-title">Select a conversation</span></div>
+        <div class="chatmsgs" id="chatmsgs"><div class="empty"><div class="eico">✉</div>Pick a conversation to start chatting</div></div>
+        <div class="chatinputrow">
+          <input class="chatinput" id="chatinput" type="text" placeholder="Type a message…" onkeydown="if(event.key==='Enter')sendMsg()"/>
+          <button class="sendbtn" onclick="sendMsg()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MY PROFILE ══ -->
+  <div id="panel-myprofile" class="panel">
+    <h1 class="ph">My Profile</h1>
+    <p class="psub">Manage your Dating Board listing</p>
+    <div id="myprofile-body"></div>
+  </div>
+
+  <!-- ══ ADMIN ══ -->
+  <div id="panel-admin" class="panel">
+    <h1 class="ph">Admin Panel</h1>
+    <p class="psub">Full control over the Dating Board</p>
+    <div id="admin-body"></div>
+  </div>
+
+</main>
+
+<!-- Profile modal -->
+<div class="overlay" id="poverlay" onclick="closeOverlay(event)"><div class="modal" id="pmodal"></div></div>
+<!-- Confirm modal -->
+<div class="overlay" id="coverlay" onclick="closeOverlay(event)"><div class="modal" id="cmodal"></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  ⚙  CONFIGURATION — REPLACE THESE TWO VALUES
+// ════════════════════════════════════════════════════════════
+const SUPABASE_URL      = 'https://gpihoysfbnjfznahwiaa.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwaWhveXNmYm5qZnpuYWh3aWFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTc4MjksImV4cCI6MjA5Njc3MzgyOX0.i2ngwicGw_CZo783eqLxmooZzgaLQ4-WXdqwI3grAf0';
+// ════════════════════════════════════════════════════════════
+//  Admin PIN — change this to whatever you want
+const ADMIN_PIN = '1234';
+// ════════════════════════════════════════════════════════════
+
+const AVIS = ['🌙','✨','🌊','🪐','🌿','🎸','🦋','🌺','🔮','🎭','🌸','⚡'];
+const BANNERS = ['','g2','g3','g4','g5'];
+const TAG_COLORS = ['','r','g','t','','r','g'];
+
+// localStorage keys (for session state only — not profile data)
+const LS_SESSION   = 'avdb_session_v3';
+const LS_MESSAGES  = 'avdb_messages_v3';
+const LS_ADMIN     = 'avdb_admin_v3';
+const LS_UNREAD    = 'avdb_unread_v3';
+
+let sb = null;           // Supabase client
+let verified = null;     // verified username
+let myProfileId = null;  // DB id of user's own profile
+let activeConvo = null;
+let isAdmin = false;
+let dbReady = false;
+
+// ── INIT ──────────────────────────────────────────────────
+function init() {
+  // Check if Supabase credentials are set
+  if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+    document.getElementById('setup-banner').classList.add('show');
+    loadDemoMode();
+  } else {
+    try {
+      sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      dbReady = true;
+    } catch(e) {
+      document.getElementById('setup-banner').classList.add('show');
+      loadDemoMode();
+    }
+  }
+
+  buildAviPicker();
+
+  // URL param from LSL
+  const params = new URLSearchParams(window.location.search);
+  const inUser = params.get('user');
+  if (inUser) document.getElementById('alife-user').value = decodeURIComponent(inUser);
+
+  // Restore session
+  const sess = lsGet(LS_SESSION, null);
+  if (sess) {
+    verified = sess.username;
+    myProfileId = sess.profileId || null;
+    updateTopBar();
+    checkAlreadyListed();
+  }
+
+  // Restore admin
+  if (lsGet(LS_ADMIN, false)) { isAdmin = true; showAdminUI(); }
+
+  // Nav
+  document.querySelectorAll('.navbtn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  document.getElementById('consent-ck').addEventListener('change', checkForm);
+
+  renderBrowse();
+  renderMyProfile();
+  renderContacts();
+}
+
+// ── DEMO MODE (no Supabase) ───────────────────────────────
+let demoProfiles = [
+  { id:'d1', name:'Seraphine Dusk', username:'SeraphDusk Resident', emoji:'🌙', banner:'', gender:'Female', age:25, looking:'Romance', tags:['Romance','Music','Dancing'], bio:"A dreamer who loves live music events and slow dances under the stars. Looking for someone genuine to share Alife adventures with.", winks:32, created_at:new Date(Date.now()-86400000*10).toISOString(), contactpref:'IM or Winks', approved:true },
+  { id:'d2', name:'Cael Morrow', username:'CaelMorrow Resident', emoji:'🌊', banner:'g2', gender:'Male', age:29, looking:'Roleplay partner', tags:['Roleplay','Building','Exploring'], bio:"Architect by day, adventurer by night. I build worlds and I'm looking for someone to fill them with stories.", winks:18, created_at:new Date(Date.now()-86400000*20).toISOString(), contactpref:'In-world IM only', approved:true },
+  { id:'d3', name:'Lyra Voss', username:'LyraVoss Resident', emoji:'✨', banner:'g3', gender:'Non-binary', age:22, looking:'Friendship', tags:['Art','Fashion','Photography'], bio:"I spend my in-world hours at galleries and beach parties. Looking for cool humans to vibe with.", winks:41, created_at:new Date(Date.now()-86400000*5).toISOString(), contactpref:'IM or Winks', approved:true },
+  { id:'d4', name:'Dorian Klass', username:'DorianKlass Resident', emoji:'🎸', banner:'g4', gender:'Male', age:34, looking:'Events buddy', tags:['Music','Events','Friendship'], bio:"Live-music junkie and part-time DJ. I host weekly jazz nights.", winks:13, created_at:new Date(Date.now()-86400000*30).toISOString(), contactpref:'In-world IM only', approved:true },
+  { id:'d5', name:'Nova Ren', username:'NovaRen Resident', emoji:'🪐', banner:'g5', gender:'Female', age:27, looking:'Open to anything', tags:['Gaming','Exploring','Roleplay'], bio:"Curious, chaotic good. I say yes to everything at least once.", winks:59, created_at:new Date(Date.now()-86400000*2).toISOString(), contactpref:'Winks only', approved:true },
+  { id:'d6', name:'Theo Gale', username:'TheoGale Resident', emoji:'🌿', banner:'g2', gender:'Male', age:31, looking:'Building partner', tags:['Building','Art','Exploring'], bio:"Environmental designer who believes every corner of the virtual world deserves a story.", winks:22, created_at:new Date(Date.now()-86400000*8).toISOString(), contactpref:'In-world IM only', approved:true }
+];
+
+function loadDemoMode() { dbReady = false; }
+
+// ── DATABASE FUNCTIONS ────────────────────────────────────
+async function dbGetProfiles() {
+  if (!dbReady) return demoProfiles.filter(p=>p.approved);
+  const { data, error } = await sb.from('profiles').select('*').eq('approved', true).order('created_at', { ascending: false });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+
+async function dbGetAllProfiles() {
+  if (!dbReady) return demoProfiles;
+  const { data, error } = await sb.from('profiles').select('*').order('created_at', { ascending: false });
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+
+async function dbInsertProfile(profile) {
+  if (!dbReady) {
+    profile.id = 'demo_'+Date.now(); profile.approved = true;
+    demoProfiles.unshift(profile); return { data: profile, error: null };
+  }
+  const { data, error } = await sb.from('profiles').insert([profile]).select().single();
+  return { data, error };
+}
+
+async function dbUpdateProfile(id, updates) {
+  if (!dbReady) {
+    const idx = demoProfiles.findIndex(p=>p.id===id);
+    if (idx>-1) Object.assign(demoProfiles[idx], updates);
+    return { error: null };
+  }
+  const { error } = await sb.from('profiles').update(updates).eq('id', id);
+  return { error };
+}
+
+async function dbDeleteProfile(id) {
+  if (!dbReady) {
+    demoProfiles = demoProfiles.filter(p=>p.id!==id);
+    return { error: null };
+  }
+  const { error } = await sb.from('profiles').delete().eq('id', id);
+  return { error };
+}
+
+async function dbIncrementWink(id) {
+  if (!dbReady) {
+    const p = demoProfiles.find(p=>p.id===id);
+    if (p) p.winks = (p.winks||0)+1;
+    return;
+  }
+  await sb.rpc('increment_wink', { profile_id: id });
+}
+
+// ── NAV ──────────────────────────────────────────────────
+function switchTab(id) {
+  if (id==='admin' && !isAdmin) { showAdminLogin(); return; }
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  const nb = document.querySelector('.navbtn[data-tab="'+id+'"]');
+  if (nb) nb.classList.add('active');
+  if (id==='browse')    renderBrowse();
+  if (id==='messages')  { renderContacts(); clearUnread(); }
+  if (id==='myprofile') renderMyProfile();
+  if (id==='admin')     renderAdmin();
+  if (id==='signup')    checkAlreadyListed();
+}
+
+function checkAlreadyListed() {
+  document.getElementById('signup-form-wrap').style.display = myProfileId ? 'none' : 'block';
+  document.getElementById('already-listed').style.display   = myProfileId ? 'block' : 'none';
+}
+
+// ── BROWSE ───────────────────────────────────────────────
+async function renderBrowse() {
+  const loading = document.getElementById('browse-loading');
+  const grid    = document.getElementById('browse-grid');
+  loading.style.display = 'block'; grid.innerHTML = '';
+
+  const search   = (document.getElementById('fsearch').value||'').toLowerCase();
+  const gender   = document.getElementById('fgender').value;
+  const interest = document.getElementById('finterest').value;
+  const sort     = document.getElementById('fsort').value;
+
+  let profiles = await dbGetProfiles();
+
+  profiles = profiles.filter(p => {
+    const ms = !search   || (p.name||'').toLowerCase().includes(search) || (p.username||'').toLowerCase().includes(search);
+    const mg = !gender   || p.gender === gender;
+    const mi = !interest || (p.tags||[]).includes(interest);
+    return ms && mg && mi;
+  });
+
+  if (sort==='alpha')  profiles.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  else if (sort==='winks') profiles.sort((a,b)=>(b.winks||0)-(a.winks||0));
+  else profiles.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+  loading.style.display = 'none';
+
+  if (!profiles.length) {
+    grid.innerHTML = '<div class="empty"><div class="eico">🔍</div>No profiles match your filters.</div>';
+    return;
+  }
+  grid.innerHTML = profiles.map(p => cardHTML(p)).join('');
+}
+
+function cardHTML(p) {
+  const tags = (p.tags||[]).map((t,i)=>'<span class="tag '+(TAG_COLORS[i]||'')+'">'+h(t)+'</span>').join('');
+  const bio  = h((p.bio||'').substring(0,88))+'…';
+  const isMe = p.id === myProfileId;
+  const pJson = encodeURIComponent(JSON.stringify(p));
+  return '<div class="pcard" onclick="openProfile(\''+pJson+'\')">'
+    +'<div class="pcard-banner '+(p.banner||'')+'"><div class="pcard-avi">'+(p.emoji||'🌙')+'</div></div>'
+    +'<div class="pcard-body">'
+    +'<div class="pcard-name">'+h(p.name)+'</div>'
+    +'<div class="pcard-user">@'+h(p.username)+'</div>'
+    +'<div class="tags">'+tags+'</div>'
+    +'<div class="pcard-bio">'+bio+'</div>'
+    +'<div class="row2">'
+    +(isMe
+      ? '<button class="btn sec" onclick="event.stopPropagation();switchTab(\'myprofile\')">My Profile</button>'
+        +'<button class="btn danger" onclick="event.stopPropagation();confirmDeleteProfile(\''+p.id+'\')">Delete</button>'
+      : '<button class="btn pri" onclick="event.stopPropagation();sendWink(\''+h(p.id)+'\',\''+h(p.name)+'\')">💜 Wink</button>'
+        +'<button class="btn sec" onclick="event.stopPropagation();openChat(\''+h(p.username)+'\',\''+h(p.name)+'\',\''+(p.emoji||'🌙')+'\')">Message</button>')
+    +'</div></div></div>';
+}
+
+// ── PROFILE MODAL ────────────────────────────────────────
+function openProfile(encoded) {
+  const p = JSON.parse(decodeURIComponent(encoded));
+  const isMe = p.id === myProfileId;
+  const tags = (p.tags||[]).map((t,i)=>'<span class="tag '+(TAG_COLORS[i]||'')+'">'+h(t)+'</span>').join('');
+  const joined = new Date(p.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('pmodal').innerHTML =
+    '<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px">'
+    +'<div class="mpavi" style="width:60px;height:60px;font-size:1.55rem">'+(p.emoji||'🌙')+'</div>'
+    +'<div><div class="mpname">'+h(p.name)+'</div>'
+    +'<div class="mpuser">@'+h(p.username)+' · '+h(p.gender||'—')+' · '+(p.age ? p.age+' yrs':'—')+'</div>'
+    +'<div class="tags" style="margin-top:5px">'+tags+'</div></div></div>'
+    +'<div class="statsrow"><div class="stat"><div class="val">'+(p.winks||0)+'</div><div class="lbl">Winks</div></div>'
+    +'<div class="stat"><div class="val">'+joined+'</div><div class="lbl">Listed</div></div></div>'
+    +'<p style="color:var(--muted);font-size:.8rem;line-height:1.65;margin:12px 0 10px">'+h(p.bio||'')+'</p>'
+    +'<p style="font-size:.76rem;color:var(--muted);margin-bottom:5px">Looking for: <strong style="color:var(--text)">'+h(p.looking||'—')+'</strong></p>'
+    +'<p style="font-size:.76rem;color:var(--muted);margin-bottom:18px">Preferred contact: <strong style="color:var(--text)">'+h(p.contactpref||'—')+'</strong></p>'
+    +'<div class="mactions"><button class="mbtn cancel" onclick="closeAllOverlays()">Close</button>'
+    +(isMe
+      ? '<button class="mbtn del" onclick="closeAllOverlays();confirmDeleteProfile(\''+p.id+'\')">Delete My Profile</button>'
+        +'<button class="mbtn ok" onclick="closeAllOverlays();switchTab(\'myprofile\')">Edit Profile</button>'
+      : '<button class="mbtn ok" onclick="closeAllOverlays();sendWink(\''+h(p.id)+'\',\''+h(p.name)+'\')">💜 Wink</button>'
+        +'<button class="mbtn cancel" onclick="closeAllOverlays();openChat(\''+h(p.username)+'\',\''+h(p.name)+'\',\''+(p.emoji||'🌙')+'\')">Message</button>')
+    +'</div>';
+  document.getElementById('poverlay').classList.add('show');
+}
+
+function closeOverlay(e) { if(e.target.classList.contains('overlay')) closeAllOverlays(); }
+function closeAllOverlays() {
+  document.getElementById('poverlay').classList.remove('show');
+  document.getElementById('coverlay').classList.remove('show');
+}
+
+// ── WINKS ────────────────────────────────────────────────
+async function sendWink(profileId, name) {
+  if (!verified) { toast('Sign in and join the board to send winks.','bad'); return; }
+  await dbIncrementWink(profileId);
+  toast('Wink sent to '+name+'! 💜','ok');
+  renderBrowse();
+}
+
+// ── SIGN UP ──────────────────────────────────────────────
+function toggleConsent() {
+  const ck = document.getElementById('consent-ck');
+  ck.checked = !ck.checked;
+  document.getElementById('consent-row').classList.toggle('checked', ck.checked);
+  checkForm();
+}
+
+function verifyAccount() {
+  const val = document.getElementById('alife-user').value.trim();
+  const st  = document.getElementById('vstatus');
+  if (!val) { st.textContent='Enter your username first.'; st.className='vstatus err'; return; }
+  st.textContent='Verifying…'; st.className='vstatus chk';
+  // Replace this timeout with a real API call to Alife Virtual if available
+  setTimeout(() => {
+    if (val.length >= 3) {
+      verified = val;
+      st.textContent='✓ Account verified: '+val; st.className='vstatus ok';
+      updateTopBar(); checkForm();
+    } else {
+      verified = null;
+      st.textContent='✗ Account not found. Check spelling and try again.'; st.className='vstatus err';
+      checkForm();
+    }
+  }, 1300);
+}
+
+function checkForm() {
+  const consent = document.getElementById('consent-ck').checked;
+  const name    = (document.getElementById('dname').value||'').trim();
+  const age     = parseInt(document.getElementById('age').value);
+  const bio     = (document.getElementById('bio').value||'').trim();
+  document.getElementById('subBtn').disabled = !(consent && verified && name && bio && age >= 18);
+}
+
+function toggleItag(el) {
+  const sel = document.querySelectorAll('#ipicker .itag.on');
+  if (!el.classList.contains('on') && sel.length >= 5) { toast('Max 5 interests.','bad'); return; }
+  el.classList.toggle('on');
+}
+
+async function submitProfile() {
+  const age = parseInt(document.getElementById('age').value);
+  if (age < 18) { toast('You must be 18 or older.','bad'); return; }
+  const emoji  = document.querySelector('.avibtn.on')?.dataset.avi || '⭐';
+  const tags   = [...document.querySelectorAll('#ipicker .itag.on')].map(el=>el.textContent);
+  const banner = BANNERS[Math.floor(Math.random()*BANNERS.length)];
+  const btn = document.getElementById('subBtn');
+  btn.disabled = true; btn.textContent = 'Posting…';
+
+  // If editing, delete old record first
+  if (myProfileId) {
+    await dbDeleteProfile(myProfileId);
+    myProfileId = null;
+  }
+
+  const profile = {
+    name:        document.getElementById('dname').value.trim(),
+    username:    verified,
+    emoji, banner,
+    gender:      document.getElementById('gender').value || 'Prefer not to say',
+    age,
+    looking:     document.getElementById('looking').value,
+    tags,
+    bio:         document.getElementById('bio').value.trim(),
+    contactpref: document.getElementById('contactpref').value,
+    winks:       0,
+    approved:    true,
+    created_at:  new Date().toISOString()
+  };
+
+  const { data, error } = await dbInsertProfile(profile);
+  btn.textContent = 'Post My Profile to the Board';
+
+  if (error) { toast('Error saving profile: '+error.message,'bad'); btn.disabled=false; return; }
+
+  myProfileId = data.id;
+  lsSet(LS_SESSION, { username: verified, profileId: myProfileId });
+  toast('Profile posted! Welcome to the Dating Board 🎉','ok');
+  checkAlreadyListed();
+  switchTab('browse');
+}
+
+// ── DELETE PROFILE ───────────────────────────────────────
+function confirmDeleteProfile(id) {
+  const isOwn = id === myProfileId;
+  document.getElementById('cmodal').innerHTML =
+    '<div class="mh">Delete Profile</div>'
+    +'<p style="color:var(--muted);font-size:.82rem;line-height:1.6;margin-bottom:4px">'
+    +(isOwn ? 'Are you sure you want to delete your profile? You can re-join at any time.'
+            : 'Admin: Delete this profile permanently? This cannot be undone.')
+    +'</p>'
+    +'<div class="mactions">'
+    +'<button class="mbtn cancel" onclick="closeAllOverlays()">Cancel</button>'
+    +'<button class="mbtn del" onclick="closeAllOverlays();executeDelete(\''+id+'\')">Yes, Delete</button>'
+    +'</div>';
+  document.getElementById('coverlay').classList.add('show');
+}
+
+async function executeDelete(id) {
+  const { error } = await dbDeleteProfile(id);
+  if (error) { toast('Delete failed: '+error.message,'bad'); return; }
+  if (id === myProfileId) {
+    myProfileId = null;
+    lsSet(LS_SESSION, { username: verified, profileId: null });
+    renderMyProfile();
+    checkAlreadyListed();
+  }
+  toast('Profile deleted.','ok');
+  renderBrowse();
+  if (isAdmin) renderAdmin();
+}
+
+// ── MY PROFILE ───────────────────────────────────────────
+async function renderMyProfile() {
+  const el = document.getElementById('myprofile-body');
+  if (!myProfileId) {
+    el.innerHTML='<div class="empty"><div class="eico">◈</div>You haven\'t joined the board yet.<br/>Head to <strong>Join Board</strong> to sign up.</div>';
+    return;
+  }
+  el.innerHTML='<div style="padding:20px;color:var(--muted);font-size:.8rem"><span class="spinner"></span>Loading your profile…</div>';
+
+  let me = null;
+  if (dbReady) {
+    const { data } = await sb.from('profiles').select('*').eq('id', myProfileId).single();
+    me = data;
+  } else {
+    me = demoProfiles.find(p=>p.id===myProfileId);
+  }
+
+  if (!me) {
+    myProfileId = null; lsSet(LS_SESSION, { username: verified, profileId: null });
+    el.innerHTML='<div class="empty"><div class="eico">◈</div>Profile not found. It may have been removed.</div>';
+    return;
+  }
+
+  const tags = (me.tags||[]).map((t,i)=>'<span class="tag '+(TAG_COLORS[i]||'')+'">'+h(t)+'</span>').join('');
+  const joined = new Date(me.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  el.innerHTML = '<div class="mypcard">'
+    +'<div class="mphead"><div class="mpavi">'+me.emoji+'</div>'
+    +'<div><div class="mpname">'+h(me.name)+'</div>'
+    +'<div class="mpuser">@'+h(me.username)+' · '+h(me.gender||'—')+' · '+(me.age||'—')+' yrs</div>'
+    +'<div class="tags" style="margin-top:5px">'+tags+'</div></div></div>'
+    +'<div class="statsrow"><div class="stat"><div class="val">'+(me.winks||0)+'</div><div class="lbl">Winks received</div></div>'
+    +'<div class="stat"><div class="val">'+joined+'</div><div class="lbl">Listed since</div></div></div>'
+    +'<div class="mpbio">'+h(me.bio||'')+'</div>'
+    +'<p style="font-size:.76rem;color:var(--muted);margin-bottom:5px">Looking for: <strong style="color:var(--text)">'+h(me.looking||'—')+'</strong></p>'
+    +'<p style="font-size:.76rem;color:var(--muted);margin-bottom:18px">Contact preference: <strong style="color:var(--text)">'+h(me.contactpref||'—')+'</strong></p>'
+    +'<div class="mpactions">'
+    +'<button class="btn sec" style="flex:none;padding:9px 18px" onclick="editProfile()">Edit Profile</button>'
+    +'<button class="btn danger" style="flex:none;padding:9px 18px" onclick="confirmDeleteProfile(\''+me.id+'\')">Delete My Profile</button>'
+    +'</div></div>';
+}
+
+function editProfile() {
+  if (!myProfileId) return;
+  (dbReady ? sb.from('profiles').select('*').eq('id',myProfileId).single() : Promise.resolve({data:demoProfiles.find(p=>p.id===myProfileId)}))
+  .then(({data:me})=>{
+    if (!me) return;
+    document.getElementById('dname').value = me.name||'';
+    document.getElementById('age').value   = me.age||'';
+    document.getElementById('gender').value = me.gender||'';
+    document.getElementById('looking').value = me.looking||'';
+    document.getElementById('bio').value   = me.bio||'';
+    document.getElementById('contactpref').value = me.contactpref||'';
+    document.getElementById('alife-user').value  = me.username||'';
+    verified = me.username;
+    const st = document.getElementById('vstatus');
+    st.textContent='✓ Account verified: '+verified; st.className='vstatus ok';
+    updateTopBar();
+    document.querySelectorAll('.avibtn').forEach(b=>b.classList.toggle('on', b.dataset.avi===me.emoji));
+    document.querySelectorAll('#ipicker .itag').forEach(el=>el.classList.toggle('on',(me.tags||[]).includes(el.textContent)));
+    document.getElementById('consent-ck').checked=true;
+    document.getElementById('consent-row').classList.add('checked');
+    checkForm();
+    document.getElementById('signup-form-wrap').style.display='block';
+    document.getElementById('already-listed').style.display='none';
+    switchTab('signup');
+    toast('Edit your profile below and click Post to update.','ok');
+  });
+}
+
+// ── ADMIN ────────────────────────────────────────────────
+function showAdminLogin() {
+  document.getElementById('cmodal').innerHTML =
+    '<div class="mh">⚙ Admin Login</div>'
+    +'<p style="color:var(--muted);font-size:.8rem;margin-bottom:16px">Enter your admin PIN to access the control panel.</p>'
+    +'<div class="fg"><label>Admin PIN</label><input class="fc pin-input" id="pin-input" type="password" maxlength="12" placeholder="••••" onkeydown="if(event.key===\'Enter\')submitPin()"/></div>'
+    +'<div class="mactions"><button class="mbtn cancel" onclick="closeAllOverlays()">Cancel</button>'
+    +'<button class="mbtn ok" onclick="submitPin()">Login</button></div>';
+  document.getElementById('coverlay').classList.add('show');
+  setTimeout(()=>document.getElementById('pin-input')?.focus(),200);
+}
+
+function submitPin() {
+  const pin = (document.getElementById('pin-input')?.value||'').trim();
+  if (pin === ADMIN_PIN) {
+    isAdmin = true; lsSet(LS_ADMIN, true);
+    closeAllOverlays(); showAdminUI();
+    switchTab('admin');
+    toast('Welcome, Admin!','ok');
+  } else {
+    toast('Incorrect PIN.','bad');
+  }
+}
+
+function showAdminUI() {
+  document.getElementById('admin-navbtn').style.display = 'inline-block';
+  document.getElementById('admin-topbtn').style.display = 'inline-block';
+}
+
+async function renderAdmin() {
+  const el = document.getElementById('admin-body');
+  el.innerHTML='<div style="padding:20px;color:var(--muted)"><span class="spinner"></span>Loading…</div>';
+  const all = await dbGetAllProfiles();
+  const approved = all.filter(p=>p.approved);
+  const pending  = all.filter(p=>!p.approved);
+
+  el.innerHTML =
+    // ── STATS ──
+    '<div class="admin-grid">'
+    +'<div class="admin-card"><div class="admin-stat">'+all.length+'</div><h3>Total Profiles</h3><p>All profiles in the database including unapproved.</p>'
+    +'<button class="btn sec" style="width:auto;padding:8px 16px;margin-top:4px" onclick="renderBrowse();switchTab(\'browse\')">View Board</button></div>'
+    +'<div class="admin-card"><div class="admin-stat">'+approved.length+'</div><h3>Active Listings</h3><p>Profiles currently visible on the browse board.</p></div>'
+    +'<div class="admin-card"><div class="admin-stat">'+pending.length+'</div><h3>Pending Approval</h3><p>Profiles awaiting manual approval before going live.</p></div>'
+    +'<div class="admin-card"><h3>Board Settings</h3><p>Manage board-wide controls.</p>'
+    +'<div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">'
+    +'<button class="btn warn" onclick="confirmClearAll()">⚠ Clear All Profiles</button>'
+    +'<button class="btn sec" onclick="adminLogout()">Log Out of Admin</button>'
+    +'</div></div>'
+    +'</div>'
+
+    // ── PENDING ──
+    +(pending.length ? '<div class="admin-table-wrap"><div class="admin-table-title">⏳ Pending Approval ('+pending.length+')</div>'
+    +'<table><thead><tr><th>Name</th><th>Username</th><th>Age</th><th>Actions</th></tr></thead><tbody>'
+    +pending.map(p=>'<tr>'
+      +'<td>'+p.emoji+' '+h(p.name)+'</td>'
+      +'<td style="color:var(--muted)">@'+h(p.username)+'</td>'
+      +'<td>'+p.age+'</td>'
+      +'<td><div class="td-actions">'
+      +'<button class="tdbtn approve" onclick="adminApprove(\''+p.id+'\')">✓ Approve</button>'
+      +'<button class="tdbtn del" onclick="confirmDeleteProfile(\''+p.id+'\')">Delete</button>'
+      +'</div></td></tr>').join('')
+    +'</tbody></table></div>' : '')
+
+    // ── ALL PROFILES ──
+    +'<div class="admin-table-wrap"><div class="admin-table-title">All Active Profiles ('+approved.length+')'
+    +'<input class="fi" style="width:200px" type="text" placeholder="Filter…" oninput="adminFilter(this.value,\'admin-profile-tbody\')"/>'
+    +'</div><table><thead><tr><th>Name</th><th>Username</th><th>Gender</th><th>Age</th><th>Winks</th><th>Listed</th><th>Actions</th></tr></thead>'
+    +'<tbody id="admin-profile-tbody">'
+    +approved.map(p=>{
+      const d = new Date(p.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+      return '<tr>'
+        +'<td>'+p.emoji+' <strong>'+h(p.name)+'</strong></td>'
+        +'<td style="color:var(--muted)">@'+h(p.username)+'</td>'
+        +'<td>'+h(p.gender||'—')+'</td>'
+        +'<td>'+p.age+'</td>'
+        +'<td>'+( p.winks||0)+'</td>'
+        +'<td>'+d+'</td>'
+        +'<td><div class="td-actions">'
+        +'<button class="tdbtn del" onclick="confirmDeleteProfile(\''+p.id+'\')">Delete</button>'
+        +'</div></td></tr>';
+    }).join('')
+    +'</tbody></table></div>'
+
+    // ── SETUP GUIDE ──
+    +'<div class="admin-table-wrap"><div class="admin-table-title">📖 Supabase Setup Guide</div>'
+    +'<div style="padding:20px;font-size:.82rem;color:var(--muted);line-height:1.85">'
+    +'<strong style="color:var(--text)">Step 1</strong> — Go to <a href="https://supabase.com" target="_blank" style="color:var(--accent)">supabase.com</a> and create a free account.<br/>'
+    +'<strong style="color:var(--text)">Step 2</strong> — Create a new project. Wait ~2 minutes for it to spin up.<br/>'
+    +'<strong style="color:var(--text)">Step 3</strong> — Go to <strong>SQL Editor</strong> and run this query to create the profiles table:<br/>'
+    +'<pre style="background:#f3f4f6;border-radius:8px;padding:14px;margin:10px 0;font-size:.75rem;overflow-x:auto;color:var(--text)">CREATE TABLE profiles (\n  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,\n  name text NOT NULL,\n  username text NOT NULL UNIQUE,\n  emoji text,\n  banner text,\n  gender text,\n  age integer,\n  looking text,\n  tags text[],\n  bio text,\n  contactpref text,\n  winks integer DEFAULT 0,\n  approved boolean DEFAULT true,\n  created_at timestamptz DEFAULT now()\n);\n\n-- Allow public read/write (for the board)\nALTER TABLE profiles ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "public read" ON profiles FOR SELECT USING (true);\nCREATE POLICY "public insert" ON profiles FOR INSERT WITH CHECK (true);\nCREATE POLICY "public update" ON profiles FOR UPDATE USING (true);\nCREATE POLICY "public delete" ON profiles FOR DELETE USING (true);\n\n-- Wink increment function\nCREATE OR REPLACE FUNCTION increment_wink(profile_id uuid)\nRETURNS void AS $$\n  UPDATE profiles SET winks = winks + 1 WHERE id = profile_id;\n$$ LANGUAGE sql;</pre>'
+    +'<strong style="color:var(--text)">Step 4</strong> — Go to <strong>Project Settings → API</strong>. Copy your <em>Project URL</em> and <em>anon public</em> key.<br/>'
+    +'<strong style="color:var(--text)">Step 5</strong> — Open your <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">index.html</code> file and replace <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">https://gpihoysfbnjfznahwiaa.supabase.co</code> and <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwaWhveXNmYm5qZnpuYWh3aWFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTc4MjksImV4cCI6MjA5Njc3MzgyOX0.i2ngwicGw_CZo783eqLxmooZzgaLQ4-WXdqwI3grAf0</code> at the top of the script.<br/>'
+    +'<strong style="color:var(--text)">Step 6</strong> — Re-upload the updated <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">index.html</code> to Netlify. Done — profiles now persist for everyone!'
+    +'</div></div>';
+}
+
+function adminFilter(val, tbodyId) {
+  const rows = document.querySelectorAll('#'+tbodyId+' tr');
+  const q = val.toLowerCase();
+  rows.forEach(row => { row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none'; });
+}
+
+async function adminApprove(id) {
+  const { error } = await dbUpdateProfile(id, { approved: true });
+  if (error) { toast('Error: '+error.message,'bad'); return; }
+  toast('Profile approved and now live!','ok');
+  renderAdmin(); renderBrowse();
+}
+
+function confirmClearAll() {
+  document.getElementById('cmodal').innerHTML =
+    '<div class="mh">⚠ Clear All Profiles</div>'
+    +'<p style="color:var(--danger);font-size:.82rem;line-height:1.6;margin-bottom:4px">This will permanently delete ALL profiles from the board. This cannot be undone.</p>'
+    +'<div class="mactions"><button class="mbtn cancel" onclick="closeAllOverlays()">Cancel</button>'
+    +'<button class="mbtn del" onclick="closeAllOverlays();executeClearAll()">Yes, Delete Everything</button></div>';
+  document.getElementById('coverlay').classList.add('show');
+}
+
+async function executeClearAll() {
+  if (!dbReady) { demoProfiles=[]; renderAdmin(); renderBrowse(); toast('All profiles cleared.','ok'); return; }
+  const { error } = await sb.from('profiles').delete().neq('id','00000000-0000-0000-0000-000000000000');
+  if (error) { toast('Error: '+error.message,'bad'); return; }
+  myProfileId = null; lsSet(LS_SESSION, { username: verified, profileId: null });
+  renderAdmin(); renderBrowse(); renderMyProfile();
+  toast('All profiles have been cleared.','ok');
+}
+
+function adminLogout() {
+  isAdmin = false; lsSet(LS_ADMIN, false);
+  document.getElementById('admin-navbtn').style.display='none';
+  document.getElementById('admin-topbtn').style.display='none';
+  switchTab('browse');
+  toast('Logged out of admin.','ok');
+}
+
+// ── MESSAGES ─────────────────────────────────────────────
+function openChat(username, name, emoji) {
+  const msgs = lsGet(LS_MESSAGES, {});
+  if (!msgs[username]) msgs[username] = { name, emoji, thread:[] };
+  lsSet(LS_MESSAGES, msgs); activeConvo = username;
+  switchTab('messages'); setTimeout(()=>renderContacts(), 80);
+}
+
+function renderContacts() {
+  const msgs = lsGet(LS_MESSAGES, {}); const keys = Object.keys(msgs);
+  const el = document.getElementById('clist');
+  if (!keys.length) { el.innerHTML='<div style="padding:18px 14px;color:var(--muted);font-size:.78rem;text-align:center">No conversations yet.<br/>Browse profiles and hit Message!</div>'; return; }
+  el.innerHTML = keys.map(k=>{
+    const c=msgs[k]; const last=c.thread[c.thread.length-1];
+    return '<div class="ci '+(activeConvo===k?'active':'')+'" onclick="selectConvo(\''+k+'\')">'
+      +'<div class="ciavi">'+(c.emoji||'🌙')+'</div>'
+      +'<div><div class="ciname">'+h(c.name)+'</div>'
+      +'<div class="ciprev">'+(last?h(last.text.substring(0,28))+'…':'No messages yet')+'</div>'
+      +'</div></div>';
+  }).join('');
+  if (activeConvo) renderThread(activeConvo);
+}
+
+function selectConvo(k) { activeConvo=k; renderContacts(); clearUnread(); }
+
+function renderThread(k) {
+  const msgs=lsGet(LS_MESSAGES,{}); const c=msgs[k]; if(!c) return;
+  document.getElementById('chat-title').textContent=c.name;
+  const area=document.getElementById('chatmsgs');
+  if(!c.thread.length){area.innerHTML='<div class="empty"><div class="eico">💬</div>Say hello!</div>';return;}
+  area.innerHTML=c.thread.map(m=>{
+    const t=new Date(m.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    return '<div class="bubble '+(m.me?'me':'them')+'">'+h(m.text)+'<div class="btime">'+t+'</div></div>';
+  }).join('');
+  area.scrollTop=area.scrollHeight;
+}
+
+function sendMsg() {
+  if(!activeConvo)return;
+  const inp=document.getElementById('chatinput'); const text=inp.value.trim(); if(!text)return;
+  const msgs=lsGet(LS_MESSAGES,{}); if(!msgs[activeConvo])return;
+  msgs[activeConvo].thread.push({me:true,text,ts:Date.now()});
+  lsSet(LS_MESSAGES,msgs); inp.value=''; renderThread(activeConvo); renderContacts();
+  setTimeout(()=>{
+    const replies=["That sounds amazing! 😊","Haha, yes! I'd love that.","Tell me more about yourself!","I was just thinking the same thing.","You should come to the next event! 🎉"];
+    const m2=lsGet(LS_MESSAGES,{}); if(!m2[activeConvo])return;
+    m2[activeConvo].thread.push({me:false,text:replies[Math.floor(Math.random()*replies.length)],ts:Date.now()});
+    lsSet(LS_MESSAGES,m2); renderThread(activeConvo); renderContacts(); updateMsgBadge();
+  },1200);
+}
+
+function updateMsgBadge(){const u=lsGet(LS_UNREAD,0);const b=document.getElementById('msg-badge');if(u>0){b.textContent=u;b.style.display='inline';}else b.style.display='none';}
+function clearUnread(){lsSet(LS_UNREAD,0);updateMsgBadge();}
+
+// ── HELPERS ──────────────────────────────────────────────
+function buildAviPicker() {
+  const wrap=document.getElementById('avipicker');
+  AVIS.forEach((e,i)=>{
+    const b=document.createElement('button');
+    b.className='avibtn'+(i===0?' on':''); b.textContent=e; b.dataset.avi=e;
+    b.onclick=()=>{document.querySelectorAll('.avibtn').forEach(x=>x.classList.remove('on'));b.classList.add('on');};
+    wrap.appendChild(b);
+  });
+}
+
+function updateTopBar(){
+  const el=document.getElementById('tb-user');
+  if(verified){el.textContent='✓ '+verified;el.classList.add('linked');}
+  else{el.textContent='Not signed in';el.classList.remove('linked');}
+}
+
+function lsGet(key,def){try{const v=localStorage.getItem(key);return v?JSON.parse(v):def;}catch(e){return def;}}
+function lsSet(key,val){try{localStorage.setItem(key,JSON.stringify(val));}catch(e){}}
+function h(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+let toastTimer;
+function toast(msg,type='ok'){
+  clearTimeout(toastTimer);const el=document.getElementById('toast');
+  el.textContent=msg;el.className='toast '+type+' show';
+  toastTimer=setTimeout(()=>el.classList.remove('show'),3500);
+}
+
+window.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
