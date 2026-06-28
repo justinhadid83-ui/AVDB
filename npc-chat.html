@@ -3,7 +3,7 @@
 <head><meta charset="UTF-8"><title>NPC Chat Relay</title></head>
 <body>
 <script>
-const ANTHROPIC_API_KEY = "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";
+const ANTHROPIC_API_KEY = "YOUR-NEW-KEY-HERE";
 const SUPABASE_REST_URL = "https://gpihoysfbnjfznahwiaa.supabase.co/rest/v1/npc_chat_responses";
 const SUPABASE_ANON_KEY = "sb_publishable_Anunb2dZPYCzvOIDSjgG1g_tZ8zq0Pm";
 
@@ -28,7 +28,7 @@ async function handleRequest() {
     return;
   }
 
-  document.body.innerText = "Thinking...";
+  document.body.innerText = "Calling Anthropic...";
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -47,28 +47,12 @@ async function handleRequest() {
       })
     });
 
-    const data  = await res.json();
-    const reply = data?.content?.[0]?.text ?? "...";
-
-    await fetch(SUPABASE_REST_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type":  "application/json",
-        "apikey":        SUPABASE_ANON_KEY,
-        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
-        "Prefer":        "return=minimal"
-      },
-      body: JSON.stringify({
-        callback_id: callback,
-        npc_name:    npcName,
-        reply:       reply
-      })
-    });
-
-    document.body.innerText = "OK: " + reply;
+    // Show the FULL raw response so we can see what Anthropic is returning
+    const rawText = await res.text();
+    document.body.innerText = "Anthropic raw response: " + rawText;
 
   } catch(err) {
-    document.body.innerText = "Error: " + err;
+    document.body.innerText = "Fetch error: " + err;
   }
 }
 
