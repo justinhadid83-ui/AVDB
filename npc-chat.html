@@ -3,9 +3,17 @@
 <head><meta charset="UTF-8"><title>NPC Chat Relay</title></head>
 <body>
 <script>
-const SUPABASE_FUNCTION_URL = "https://gpihoysfbnjfznahwiaa.supabase.co/functions/v1/npc-chat";
-const SUPABASE_REST_URL     = "https://gpihoysfbnjfznahwiaa.supabase.co/rest/v1/npc_chat_responses";
-const SUPABASE_ANON_KEY     = "sb_publishable_Anunb2dZPYCzvOIDSjgG1g_tZ8zq0Pm";
+const ANTHROPIC_API_KEY = "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";
+const SUPABASE_REST_URL = "https://gpihoysfbnjfznahwiaa.supabase.co/rest/v1/npc_chat_responses";
+const SUPABASE_ANON_KEY = "sb_publishable_Anunb2dZPYCzvOIDSjgG1g_tZ8zq0Pm";
+
+const PERSONALITIES = {
+  friendly:   "You are a warm, cheerful, wholesome person. You are happy to chat and always positive.",
+  flirty:     "You are playful, teasing and mildly suggestive. You enjoy light flirting and compliments.",
+  slutty:     "You are bold, explicit and uninhibited. You speak openly about desire and attraction with no filter.",
+  mysterious: "You are cryptic, dark and intriguing. You speak in riddles and never give straight answers.",
+  mean:       "You are sarcastic, cold and dismissive. You tolerate conversation but make it clear you find it tedious."
+};
 
 async function handleRequest() {
   const params      = new URLSearchParams(window.location.search);
@@ -15,39 +23,34 @@ async function handleRequest() {
   const ownerName   = params.get("owner")       ?? "someone";
   const callback    = params.get("callback")    ?? "";
 
-  // Show status on page for debugging
-  document.body.innerText = "Processing request for " + npcName + "...";
-
   if (!npcName || !message || !callback) {
-    document.body.innerText = "Missing parameters: npc=" + npcName + " message=" + message + " callback=" + callback;
+    document.body.innerText = "Missing parameters.";
     return;
   }
 
+  document.body.innerText = "Thinking...";
+
   try {
-    // Step 1 — Call Edge Function
-    console.log("Calling Edge Function...");
-    const res = await fetch(SUPABASE_FUNCTION_URL, {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        "Content-Type":  "application/json",
-        "Authorization": "Bearer " + SUPABASE_ANON_KEY
+        "Content-Type":            "application/json",
+        "x-api-key":               ANTHROPIC_API_KEY,
+        "anthropic-version":       "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
       },
-      body: JSON.stringify({ npcName, personality, message, ownerName })
+      body: JSON.stringify({
+        model:      "claude-haiku-4-5-20251001",
+        max_tokens: 120,
+        system:     `Your name is ${npcName}. ${PERSONALITIES[personality] ?? PERSONALITIES.friendly} Keep responses short — 1 to 2 sentences max. You are talking to ${ownerName} in a virtual world.`,
+        messages:   [{ role: "user", content: message }]
+      })
     });
 
     const data  = await res.json();
-    console.log("Edge Function response:", data);
+    const reply = data?.content?.[0]?.text ?? "...";
 
-    if (data.error) {
-      document.body.innerText = "Edge Function error: " + data.error;
-      return;
-    }
-
-    const reply = data.reply ?? "...";
-    document.body.innerText = "Got reply: " + reply + "\nStoring in Supabase...";
-
-    // Step 2 — Store reply in Supabase table for LSL to poll
-    const storeRes = await fetch(SUPABASE_REST_URL, {
+    await fetch(SUPABASE_REST_URL, {
       method: "POST",
       headers: {
         "Content-Type":  "application/json",
@@ -62,16 +65,10 @@ async function handleRequest() {
       })
     });
 
-    if (storeRes.ok) {
-      document.body.innerText = "OK: " + reply;
-    } else {
-      const storeErr = await storeRes.text();
-      document.body.innerText = "Store error: " + storeErr;
-    }
+    document.body.innerText = "OK: " + reply;
 
   } catch(err) {
-    document.body.innerText = "Exception: " + err;
-    console.error(err);
+    document.body.innerText = "Error: " + err;
   }
 }
 
