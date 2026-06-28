@@ -3,44 +3,57 @@
 <head><meta charset="UTF-8"><title>NPC Chat Relay</title></head>
 <body>
 <script>
-const SUPABASE_URL = "https://gpihoysfbnjfznahwiaa.supabase.co/functions/v1/npc-chat";
-const SUPABASE_ANON_KEY = "sb_publishable_Anunb2dZPYCzvOIDSjgG1g_tZ8zq0Pm";
+const SUPABASE_FUNCTION_URL = "https://gpihoysfbnjfznahwiaa.supabase.co/functions/v1/npc-chat";
+const SUPABASE_REST_URL     = "https://gpihoysfbnjfznahwiaa.supabase.co/rest/v1/npc_chat_responses";
+const SUPABASE_ANON_KEY     = "sb_publishable_Anunb2dZPYCzvOIDSjgG1g_tZ8zq0Pm";
 
 async function handleRequest() {
   const params      = new URLSearchParams(window.location.search);
-  const npcName     = params.get("npc")          ?? "";
-  const personality = params.get("personality")  ?? "friendly";
-  const message     = params.get("message")      ?? "";
-  const ownerName   = params.get("owner")        ?? "someone";
-  const callback    = params.get("callback")     ?? "";
+  const npcName     = params.get("npc")         ?? "";
+  const personality = params.get("personality") ?? "friendly";
+  const message     = params.get("message")     ?? "";
+  const ownerName   = params.get("owner")       ?? "someone";
+  const callback    = params.get("callback")    ?? "";
+
+  // Show status on page for debugging
+  document.body.innerText = "Processing request for " + npcName + "...";
 
   if (!npcName || !message || !callback) {
-    document.body.innerText = "Missing parameters.";
+    document.body.innerText = "Missing parameters: npc=" + npcName + " message=" + message + " callback=" + callback;
     return;
   }
 
   try {
-    // Step 1 — Call Supabase Edge Function to get AI reply
-    const res = await fetch(SUPABASE_URL, {
+    // Step 1 — Call Edge Function
+    console.log("Calling Edge Function...");
+    const res = await fetch(SUPABASE_FUNCTION_URL, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+        "Content-Type":  "application/json",
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY
       },
       body: JSON.stringify({ npcName, personality, message, ownerName })
     });
 
     const data  = await res.json();
-    const reply = data.reply ?? "...";
+    console.log("Edge Function response:", data);
 
-    // Step 2 — Store reply in Supabase table so LSL can poll for it
-    await fetch(`https://gpihoysfbnjfznahwiaa.supabase.co/rest/v1/npc_chat_responses`, {
+    if (data.error) {
+      document.body.innerText = "Edge Function error: " + data.error;
+      return;
+    }
+
+    const reply = data.reply ?? "...";
+    document.body.innerText = "Got reply: " + reply + "\nStoring in Supabase...";
+
+    // Step 2 — Store reply in Supabase table for LSL to poll
+    const storeRes = await fetch(SUPABASE_REST_URL, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "apikey": SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        "Prefer": "return=minimal"
+        "Content-Type":  "application/json",
+        "apikey":        SUPABASE_ANON_KEY,
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+        "Prefer":        "return=minimal"
       },
       body: JSON.stringify({
         callback_id: callback,
@@ -49,10 +62,16 @@ async function handleRequest() {
       })
     });
 
-    document.body.innerText = "OK: " + reply;
+    if (storeRes.ok) {
+      document.body.innerText = "OK: " + reply;
+    } else {
+      const storeErr = await storeRes.text();
+      document.body.innerText = "Store error: " + storeErr;
+    }
 
   } catch(err) {
-    document.body.innerText = "Error: " + err;
+    document.body.innerText = "Exception: " + err;
+    console.error(err);
   }
 }
 
