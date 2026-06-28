@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>NPC Chat Relay</title></head>
+<body>
+<script>
+const SUPABASE_URL = "https://gpihoysfbnjfznahwiaa.supabase.co/functions/v1/npc-chat";
+const SUPABASE_ANON_KEY = "sb_publishable_Anunb2dZPYCzvOIDSjgG1g_tZ8zq0Pm";
+
+async function handleRequest() {
+  const params      = new URLSearchParams(window.location.search);
+  const npcName     = params.get("npc")          ?? "";
+  const personality = params.get("personality")  ?? "friendly";
+  const message     = params.get("message")      ?? "";
+  const ownerName   = params.get("owner")        ?? "someone";
+  const callback    = params.get("callback")     ?? "";
+
+  if (!npcName || !message || !callback) {
+    document.body.innerText = "Missing parameters.";
+    return;
+  }
+
+  try {
+    // Step 1 — Call Supabase Edge Function to get AI reply
+    const res = await fetch(SUPABASE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body: JSON.stringify({ npcName, personality, message, ownerName })
+    });
+
+    const data  = await res.json();
+    const reply = data.reply ?? "...";
+
+    // Step 2 — Store reply in Supabase table so LSL can poll for it
+    await fetch(`https://gpihoysfbnjfznahwiaa.supabase.co/rest/v1/npc_chat_responses`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({
+        callback_id: callback,
+        npc_name:    npcName,
+        reply:       reply
+      })
+    });
+
+    document.body.innerText = "OK: " + reply;
+
+  } catch(err) {
+    document.body.innerText = "Error: " + err;
+  }
+}
+
+handleRequest();
+</script>
+</body>
+</html>
